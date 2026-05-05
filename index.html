@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>雅思教学统计助手</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <h1>雅思教学统计助手</h1>
+        </div>
+        <div class="top-actions">
+          <button id="seedDemoBtn" class="ghost-btn">示例数据</button>
+          <button id="exportBtn" class="ghost-btn">导出</button>
+          <label class="ghost-btn import-btn">
+            导入
+            <input id="importInput" type="file" accept="application/json" />
+          </label>
+        </div>
+      </header>
+
+      <nav class="tab-bar" aria-label="主导航">
+        <button class="tab-btn active" data-tab="dashboard">工作台</button>
+        <button class="tab-btn" data-tab="students">学生</button>
+        <button class="tab-btn" data-tab="records">课程录入</button>
+        <button class="tab-btn" data-tab="schedule">课程表</button>
+        <button class="tab-btn" data-tab="tracker">材料追踪</button>
+      </nav>
+
+      <section class="quick-actions" aria-label="快捷操作">
+        <button class="quick-action-btn" data-quick-target="students">新增学生</button>
+        <button class="quick-action-btn" data-quick-target="records">新建课程</button>
+        <button class="quick-action-btn" data-quick-target="schedule">打开月历</button>
+        <button class="quick-action-btn" data-quick-trigger="student-import">导入学生表</button>
+      </section>
+
+      <section class="stats-strip" id="summaryGrid"></section>
+
+      <main>
+        <section class="tab-panel active" id="dashboard">
+          <article class="panel-card priority-panel">
+            <div class="panel-head">
+              <h2>教师课时结构</h2>
+              <input id="monthPicker" type="month" />
+            </div>
+            <div id="teacherOverviewPanel"></div>
+          </article>
+
+          <div class="dashboard-grid">
+            <article class="panel-card">
+              <div class="panel-head">
+                <h2>学生课时分布</h2>
+              </div>
+              <div id="monthlyHours" class="stack-list compact"></div>
+            </article>
+
+            <article class="panel-card">
+              <div class="panel-head">
+                <h2>奖励提醒</h2>
+              </div>
+              <div id="rewardPanel"></div>
+            </article>
+          </div>
+
+          <div class="dashboard-grid dashboard-secondary">
+            <article class="panel-card">
+              <div class="panel-head">
+                <h2>备忘录</h2>
+                <button id="saveMemoBtn" type="button" class="ghost-btn">保存</button>
+              </div>
+              <label class="full-span">
+                本周提醒
+                <textarea id="memoInput" rows="8" placeholder="记录本周重点学生、补课安排、口语批改、出分节点"></textarea>
+              </label>
+            </article>
+
+            <article class="panel-card">
+              <div class="panel-head">
+                <h2>本周课程预览</h2>
+                <button id="saveWeekNoteBtn" type="button" class="ghost-btn">保存</button>
+              </div>
+              <label class="full-span dashboard-note">
+                课程预览补充
+                <textarea id="weekNoteInput" rows="4" placeholder="例如：周三前确认补课；周五班课提前准备阅读材料"></textarea>
+              </label>
+              <div id="dashboardWeekPanel" class="stack-list compact"></div>
+            </article>
+          </div>
+
+          <article class="panel-card full-width">
+            <div class="panel-head">
+              <h2>待处理</h2>
+              <button id="saveTodoBtn" type="button" class="ghost-btn">保存</button>
+            </div>
+            <label class="full-span dashboard-note">
+              手动待办
+              <textarea id="todoInput" rows="4" placeholder="每行一条，例如：提醒冯成妍补交作文"></textarea>
+            </label>
+            <div id="followUpList" class="stack-list"></div>
+          </article>
+        </section>
+
+        <section class="tab-panel" id="students">
+          <div class="workspace-grid">
+            <article class="panel-card">
+              <div class="panel-head">
+                <h2>学生列表</h2>
+                <div class="panel-actions">
+                  <a class="ghost-btn" href="./student-import-template.xlsx" download>Excel范本</a>
+                  <label class="ghost-btn import-btn">
+                    导入学生Excel
+                    <input id="studentExcelInput" type="file" accept=".xlsx,.csv" />
+                  </label>
+                </div>
+              </div>
+              <div id="studentList" class="stack-list"></div>
+            </article>
+
+            <article class="panel-card">
+              <div class="panel-head">
+                <h2>学生资料</h2>
+              </div>
+              <form id="studentForm" class="form-grid">
+                <input type="hidden" id="studentId" />
+                <label>
+                  学生姓名
+                  <input id="studentName" type="text" placeholder="例如：Luna" required />
+                </label>
+                <div class="field-shell">
+                  <span class="field-title">考试类型</span>
+                  <input id="studentExam" type="hidden" />
+                  <div id="studentExamPicker" class="segmented-row"></div>
+                </div>
+                <div class="field-shell">
+                  <span class="field-title">语言基础</span>
+                  <input id="studentFoundation" type="hidden" />
+                  <div id="studentFoundationPicker" class="segmented-row"></div>
+                </div>
+                <label>
+                  当前基础分数
+                  <input id="studentFoundationScore" type="text" placeholder="例如：IELTS 5.5 / TOEFL 80" />
+                </label>
+                <div class="field-shell">
+                  <div class="field-head">
+                    <span class="field-title">目标分数</span>
+                    <strong id="studentTargetDisplay">6.5</strong>
+                  </div>
+                  <input id="studentTargetRange" type="range" />
+                  <div id="studentTargetTicks" class="range-ticks"></div>
+                </div>
+                <input id="studentTarget" type="hidden" />
+                <label>
+                  考试日期
+                  <input id="studentExamDate" type="date" />
+                </label>
+                <div class="field-shell full-span">
+                  <span class="field-title">课程类型</span>
+                  <input id="studentCourseMode" type="hidden" />
+                  <div id="studentCourseModePicker" class="segmented-row"></div>
+                  <div class="form-grid compact-grid">
+                    <label>
+                      套餐
+                      <select id="studentPackagePlan"></select>
+                    </label>
+                    <label>
+                      课时量
+                      <input id="studentPackageHours" type="number" min="0" step="1" placeholder="可手动调整" />
+                    </label>
+                  </div>
+                </div>
+                <label>
+                  匹配助教
+                  <select id="studentAssistant">
+                    <option value="未匹配">未匹配</option>
+                    <option value="Polla">Polla</option>
+                    <option value="其他助教">其他助教</option>
+                  </select>
+                </label>
+                <label class="full-span">
+                  备注
+                  <textarea id="studentNotes" rows="4" placeholder="记录考试日期、学习风格或特殊情况"></textarea>
+                </label>
+                <div class="form-actions full-span">
+                  <button type="submit" class="primary-btn">保存学生</button>
+                  <button type="button" id="resetStudentBtn" class="ghost-btn">清空</button>
+                </div>
+              </form>
+            </article>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="records">
+          <div class="workspace-grid record-workspace">
+            <article class="panel-card">
+              <div class="panel-head">
+                <h2>课程录入</h2>
+              </div>
+              <form id="recordForm" class="record-form">
+                <input type="hidden" id="recordId" />
+                <input type="hidden" id="recordDuration" />
+
+                <div class="form-grid">
+                  <label>
+                    学生
+                    <select id="recordStudent" required></select>
+                  </label>
+                  <label>
+                    日期
+                    <input id="recordDate" type="date" required />
+                  </label>
+                  <label>
+                    状态
+                    <select id="recordStatus">
+                      <option value="scheduled">已排课</option>
+                      <option value="completed">已完成</option>
+                      <option value="cancelled">已取消</option>
+                    </select>
+                  </label>
+                </div>
+
+                <section class="form-section">
+                  <div class="section-head">
+                    <h3>上课时间</h3>
+                    <p>用时段来记录一节课，让老师和学生都能看到时间投入的分量。</p>
+                  </div>
+                  <div class="time-zone-card">
+                    <div class="form-grid compact-grid">
+                      <label>
+                        开始时间
+                        <input id="recordStartTime" type="time" required />
+                      </label>
+                      <label>
+                        结束时间
+                        <input id="recordEndTime" type="time" required />
+                      </label>
+                    </div>
+                    <div class="time-weight">
+                      <div class="time-weight-meta">
+                        <span class="field-title">本节课时长</span>
+                        <strong id="recordDurationDisplay">2.0h</strong>
+                      </div>
+                      <div class="time-weight-track">
+                        <div id="recordTimeWeightBar" class="time-weight-bar"></div>
+                      </div>
+                      <div class="time-weight-notes">
+                        <span>08:00</span>
+                        <span>12:00</span>
+                        <span>16:00</span>
+                        <span>20:00</span>
+                        <span>24:00</span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="form-section">
+                  <div class="section-head">
+                    <h3>授课内容</h3>
+                    <p>课堂模块、教材和写作记录都归档在这里，和课后作业分开统计。</p>
+                  </div>
+                  <div id="lessonTagPicker" class="chip-grid"></div>
+                  <div class="custom-module-row">
+                    <input id="customLessonTagInput" type="text" placeholder="输入新的课堂模块，例如：口语模考" />
+                    <button id="addCustomLessonTagBtn" type="button" class="ghost-btn">添加模块</button>
+                  </div>
+                </section>
+
+                <section class="form-section teaching-content-section">
+                  <div class="section-head">
+                    <h3>教材模块</h3>
+                    <p>不再手输题号，改成按教材结构选取。</p>
+                  </div>
+                  <div class="material-builder">
+                    <div class="builder-grid">
+                      <label>
+                        模块
+                        <select id="builderModule">
+                          <option value="listening">剑雅听力</option>
+                          <option value="reading">剑雅阅读</option>
+                          <option value="external-reading">外刊精读</option>
+                        </select>
+                      </label>
+                      <label>
+                        套数
+                        <select id="builderSeries"></select>
+                      </label>
+                      <label>
+                        Test
+                        <select id="builderTest">
+                          <option value="1">Test 1</option>
+                          <option value="2">Test 2</option>
+                          <option value="3">Test 3</option>
+                          <option value="4">Test 4</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <div id="builderPartPicker" class="chip-grid"></div>
+
+                    <div class="form-actions">
+                      <button type="button" id="addCompletedMaterialsBtn" class="primary-btn">加入本次课堂</button>
+                      <button type="button" id="addAssignedMaterialsBtn" class="ghost-btn">加入课后作业</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="form-section preview-section">
+                  <div>
+                    <div class="section-mini">本次课堂</div>
+                    <div id="completedPreview" class="preview-list"></div>
+                  </div>
+                  <div>
+                    <div class="section-mini">课后作业</div>
+                    <div id="assignedPreview" class="preview-list"></div>
+                  </div>
+                </section>
+
+                <section class="form-section teaching-content-section">
+                  <div class="section-head">
+                    <h3>写作记录</h3>
+                    <p>Task 1 / Task 2 是课堂授课内容，不计入作业完成度。</p>
+                  </div>
+                  <div class="writing-panel">
+                    <div class="section-mini">Task 1 题型</div>
+                    <div id="writingTask1Picker" class="chip-grid"></div>
+                    <div class="section-mini">Task 2 题型</div>
+                    <div id="writingTask2Picker" class="chip-grid"></div>
+                    <label class="full-span">
+                      写作情况
+                      <textarea id="recordWritingNote" rows="3" placeholder="例如：Task2审题偏宽，段落论证需要补例子"></textarea>
+                    </label>
+                  </div>
+                </section>
+
+                <section class="form-section">
+                  <div class="section-head">
+                    <h3>自动建议</h3>
+                    <p>系统会优先推荐该学生还没做过的下一题。</p>
+                  </div>
+                  <div id="recordSuggestionBox" class="suggestion-row"></div>
+                </section>
+
+                <section class="form-section homework-section">
+                  <div class="section-head">
+                    <h3>课后作业</h3>
+                    <p>这里只记录课后任务和完成度，便于后续跟进。</p>
+                  </div>
+                  <div class="form-grid">
+                    <label>
+                      作业完成度
+                      <input id="recordHomeworkCompletion" type="number" min="0" max="100" step="5" value="0" />
+                    </label>
+                    <label>
+                      作业备注
+                      <input id="recordHomeworkNote" type="text" placeholder="例如：整理错题 / 复听 Part3" />
+                    </label>
+                  </div>
+                </section>
+
+                <label class="full-span">
+                  课堂备注
+                  <textarea id="recordNotes" rows="3" placeholder="补充课堂表现、问题点或下节课目标"></textarea>
+                </label>
+
+                <div class="form-actions">
+                  <button type="submit" class="primary-btn">保存记录</button>
+                  <button type="button" id="resetRecordBtn" class="ghost-btn">清空</button>
+                </div>
+              </form>
+            </article>
+            <div id="recordList" hidden></div>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="schedule">
+          <article class="panel-card">
+            <div class="panel-head">
+              <h2>月历课程表</h2>
+              <div class="panel-actions">
+                <button id="scheduleTodayBtn" type="button" class="ghost-btn">今天</button>
+                <input id="scheduleAnchorDate" type="month" />
+              </div>
+            </div>
+            <div id="scheduleWeekRange" class="tracker-summary"></div>
+            <div id="scheduleWeekHeader" class="schedule-week-header"></div>
+            <div id="scheduleBoard" class="schedule-board"></div>
+          </article>
+
+          <article class="panel-card full-width">
+            <div class="panel-head">
+              <h2>当天课程</h2>
+            </div>
+            <div id="scheduleAgenda" class="stack-list"></div>
+          </article>
+        </section>
+
+        <section class="tab-panel" id="tracker">
+          <article class="panel-card">
+            <div class="filter-grid">
+              <label>
+                学生
+                <select id="trackerStudent"></select>
+              </label>
+              <label>
+                模块
+                <select id="trackerModule">
+                  <option value="listening">剑雅听力</option>
+                  <option value="reading">剑雅阅读</option>
+                  <option value="external-reading">外刊精读</option>
+                </select>
+              </label>
+              <label>
+                套数
+                <select id="trackerSeries"></select>
+              </label>
+            </div>
+
+            <div id="trackerSummary" class="tracker-summary"></div>
+
+            <div class="helper-box">
+              <div class="section-mini">推荐下次布置</div>
+              <div id="trackerSuggestions" class="suggestion-row"></div>
+            </div>
+          </article>
+
+          <div class="dashboard-grid tracker-grid">
+            <article class="panel-card">
+              <div class="panel-head">
+                <h2>待完成</h2>
+              </div>
+              <div id="pendingMaterials" class="stack-list compact"></div>
+            </article>
+            <article class="panel-card">
+              <div class="panel-head">
+                <h2>最近完成</h2>
+              </div>
+              <div id="completedMaterials" class="stack-list compact"></div>
+            </article>
+          </div>
+
+          <article class="panel-card full-width">
+            <div class="panel-head">
+              <h2>材料总表</h2>
+            </div>
+            <div id="trackerCatalog" class="catalog-grid"></div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
