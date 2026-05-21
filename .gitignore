@@ -1,3 +1,13 @@
 .DS_Store
 node_modules
 node_modules/
+
+# Local/private data files that should not be published.
+import-example.json
+*-raw-table.md
+ielts-final-hours-table-*.md
+ielts-hour-deduction-summary-*.md
+supabase-setup.sql
+A-tool-子对话清单.md
+规划文档-*.md
+需求文档-*.md

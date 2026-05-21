@@ -36,9 +36,12 @@
 以后功能继续调整时，不需要更换网址。
 
 1. 修改根目录里的 `index.html`、`style.css`、`app.js`。
-2. 运行 `sync-github-pages-docs.command`，把需要发布的文件同步到 `docs/`。
-3. 提交并推送到同一个 GitHub 仓库。
-4. GitHub Pages 会自动更新同一个网址。
+2. 如有模板变化，同时修改根目录里的 `student-import-template.xlsx`。
+3. 运行 `sync-github-pages-docs.command`，把需要发布的文件同步到 `docs/`。
+4. 提交并推送到同一个 GitHub 仓库。
+5. GitHub Pages 会自动更新同一个网址。
+
+浏览器和 GitHub Pages 都可能有短暂缓存。若页面看起来还是旧版本，先强制刷新；本项目会通过 `index.html` 里的资源版本参数让 CSS/JS 更容易更新。
 
 ## 数据提醒
 
@@ -48,6 +51,9 @@
 - 别人打开公网网址后，会使用他自己浏览器里的本地数据。
 - 如果要迁移数据，先在旧页面导出 JSON，再在新页面导入。
 - 如果未来换域名，`localStorage` 也会变，需要导出/导入，或先做云端同步。
+- 如果测试者已经在旧版本里导入过学生，刷新代码不会自动删除他的本地数据；需要手动清理对应站点的浏览器本地存储。
+- 不要把真实学生数据、原始课时表或导出的 JSON/CSV/Excel 提交到公开仓库。
+- 云端同步默认不带 Supabase URL 和 anon key，正式使用前需要手动填写并确认 RLS 权限规则。
 
 ## 费用
 

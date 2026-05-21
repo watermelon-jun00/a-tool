@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>雅思教学统计助手</title>
-    <link rel="stylesheet" href="./style.css?v=20260521-publish" />
+    <link rel="stylesheet" href="./style.css?v=20260521-privacy" />
   </head>
   <body>
     <div class="app-shell">
@@ -156,7 +156,7 @@
             </div>
             <label class="full-span dashboard-note">
               手动待办
-              <textarea id="todoInput" rows="4" placeholder="每行一条，例如：提醒冯成妍补交作文"></textarea>
+              <textarea id="todoInput" rows="4" placeholder="每行一条，例如：提醒学生A补交作文"></textarea>
             </label>
             <div id="followUpList" class="stack-list"></div>
           </article>
@@ -186,7 +186,7 @@
                 <input type="hidden" id="studentId" />
                 <label>
                   学生姓名
-                  <input id="studentName" type="text" placeholder="例如：Luna" required />
+                  <input id="studentName" type="text" placeholder="例如：学生A" required />
                 </label>
                 <div class="field-shell">
                   <span class="field-title">考试类型</span>
@@ -239,7 +239,7 @@
                   匹配助教
                   <select id="studentAssistant">
                     <option value="未匹配">未匹配</option>
-                    <option value="Polla">Polla</option>
+                    <option value="助教A">助教A</option>
                     <option value="其他助教">其他助教</option>
                   </select>
                 </label>
@@ -659,7 +659,7 @@
           <input type="hidden" id="trialId" />
           <label>
             学生姓名
-            <input id="trialName" type="text" placeholder="例如：Mia" required />
+            <input id="trialName" type="text" placeholder="例如：试听A" required />
           </label>
           <label>
             联系方式
@@ -749,6 +749,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=20260521-publish"></script>
+    <script src="./app.js?v=20260521-privacy"></script>
   </body>
 </html>

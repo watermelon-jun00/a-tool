@@ -2580,7 +2580,7 @@ function resetStudentForm() {
   els.studentPackagePlan.value = normalizeCourseProduct(COURSE_MODE_OPTIONS[0], "");
   els.studentPackageHours.value = "";
   els.studentClassName.value = "";
-  els.studentAssistant.value = "Polla";
+  els.studentAssistant.value = "未匹配";
   renderStudentControls();
 }
 
@@ -2711,7 +2711,7 @@ function loadDemoData() {
 
   const studentA = {
     id: createId("student"),
-    name: "Luna",
+    name: "学生A",
     exam: "IELTS",
     foundation: "中等",
     foundationScore: "IELTS 5.5",
@@ -2720,12 +2720,12 @@ function loadDemoData() {
     courseMode: "雅思1v1",
     packageHours: "30",
     packagePlan: "雅思1v1-30课时",
-    assistant: "Polla",
-    notes: "6 月考试，容易重复刷旧题。",
+    assistant: "助教A",
+    notes: "匿名示例：6 月考试，容易重复刷旧题。",
   };
   const studentB = {
     id: createId("student"),
-    name: "Mason",
+    name: "学生B",
     exam: "IELTS",
     foundation: "较稳",
     foundationScore: "IELTS 6.0",
@@ -2735,12 +2735,12 @@ function loadDemoData() {
     packageHours: "40",
     packagePlan: "雅思强化班-常规开设",
     className: "雅思强化春季班",
-    assistant: "Polla",
-    notes: "阅读题量大，重点控重复。",
+    assistant: "助教A",
+    notes: "匿名示例：阅读题量大，重点控重复。",
   };
   const studentC = {
     id: createId("student"),
-    name: "Celine",
+    name: "学生C",
     exam: "IELTS",
     foundation: "中等",
     foundationScore: "IELTS 5.5",
@@ -2750,16 +2750,16 @@ function loadDemoData() {
     packageHours: "40",
     packagePlan: "雅思强化班-常规开设",
     className: "雅思强化春季班",
-    assistant: "Polla",
-    notes: "班课口语参与度高，阅读速度偏慢。",
+    assistant: "助教A",
+    notes: "匿名示例：班课口语参与度高，阅读速度偏慢。",
   };
 
   state.students = [studentA, studentB, studentC];
   state.trialStudents = [
     {
       id: createId("trial"),
-      name: "Mia",
-      contact: "mia-parent",
+      name: "试听A",
+      contact: "匿名联系方式",
       source: "转介绍",
       exam: "IELTS",
       foundation: "薄弱",
@@ -2844,9 +2844,9 @@ function loadDemoData() {
   state.ui.trackerSeries = "all";
   state.ui.scheduleAnchorDate = today();
   state.ui.selectedScheduleDate = today();
-  state.memo = "1. 跟进 Luna 的 Part3 定位。\n2. Mason 下节课先做 Passage3。\n3. 周末整理 5 月排课。";
+  state.memo = "1. 跟进 学生A 的 Part3 定位。\n2. 学生B 下节课先做 Passage3。\n3. 周末整理 5 月排课。";
   state.weekNote = "周三确认班课阅读材料；周五前整理作文批改。";
-  state.todoNote = "提醒 Luna 补交 Task2\n确认 Mason 下节课是否线上";
+  state.todoNote = "提醒 学生A 补交 Task2\n确认 学生B 下节课是否线上";
   persist();
   resetStudentForm();
   resetRecordForm();
@@ -3240,7 +3240,7 @@ function buildStudentsFromRows(rows) {
         courseMode,
         packagePlan,
         packageHours: normalizePackageHoursInput(rawHours) || normalizePackageHours(courseMode, packagePlan, rawHours),
-        assistant: getRowValue(row, headerMap, ["匹配助教", "助教"]) || "Polla",
+        assistant: getRowValue(row, headerMap, ["匹配助教", "助教"]) || "未匹配",
         notes: getRowValue(row, headerMap, ["备注", "学生备注"]),
       };
     })
@@ -3681,7 +3681,7 @@ function normalizeStudents(students) {
     packagePlan: normalizeCourseProduct(normalizeCourseMode(student.courseMode), student.packagePlan),
     packageHours: normalizePackageHours(normalizeCourseMode(student.courseMode), student.packagePlan, student.packageHours),
     className: String(student.className || "").trim(),
-    assistant: student.assistant || "Polla",
+    assistant: student.assistant || "未匹配",
     notes: student.notes || "",
   }));
 }
