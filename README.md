@@ -12,7 +12,8 @@
 
 ### 方式一：直接打开文件
 
-双击或在浏览器里打开 [index.html](./index.html)。
+双击或在浏览器里打开 [index.html](./index.html)。或者点击：https://watermelon-jun00.github.io/a-tool/
+
 
 适合日常本地使用。地址会显示为 `file:///.../index.html`，不占用端口，也不会因为本地服务关闭而打不开。
 
