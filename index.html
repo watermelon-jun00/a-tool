@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>雅思教学统计助手</title>
-    <link rel="stylesheet" href="./style.css?v=20260521-privacy" />
+    <link rel="stylesheet" href="./style.css?v=20260604-score" />
   </head>
   <body>
     <div class="app-shell">
@@ -252,6 +252,68 @@
                   <button type="button" id="resetStudentBtn" class="ghost-btn">清空</button>
                 </div>
               </form>
+            </article>
+
+            <article class="panel-card full-width exam-score-panel">
+              <div class="panel-head">
+                <div>
+                  <div class="panel-kicker">IELTS Score</div>
+                  <h2>实考成绩</h2>
+                </div>
+                <div class="panel-actions">
+                  <button id="resetScoreBtn" type="button" class="ghost-btn">清空成绩表单</button>
+                </div>
+              </div>
+              <div class="exam-score-layout">
+                <form id="scoreForm" class="form-grid score-form">
+                  <input type="hidden" id="scoreId" />
+                  <label>
+                    学生
+                    <select id="scoreStudent"></select>
+                  </label>
+                  <label>
+                    实考日期
+                    <input id="scoreDate" type="date" />
+                  </label>
+                  <label>
+                    Listening
+                    <input id="scoreListening" type="number" min="0" max="9" step="0.5" placeholder="例如：6.5" />
+                  </label>
+                  <label>
+                    Reading
+                    <input id="scoreReading" type="number" min="0" max="9" step="0.5" placeholder="例如：7.0" />
+                  </label>
+                  <label>
+                    Writing
+                    <input id="scoreWriting" type="number" min="0" max="9" step="0.5" placeholder="例如：6.0" />
+                  </label>
+                  <label>
+                    Speaking
+                    <input id="scoreSpeaking" type="number" min="0" max="9" step="0.5" placeholder="例如：6.5" />
+                  </label>
+                  <label>
+                    Overall
+                    <input id="scoreOverall" type="number" min="0" max="9" step="0.5" placeholder="例如：6.5" />
+                  </label>
+                  <label>
+                    成绩截图（可选）
+                    <input id="scoreScreenshotInput" type="file" accept="image/*" />
+                  </label>
+                  <label class="full-span">
+                    备注（可选）
+                    <textarea id="scoreNotes" rows="3" placeholder="记录出分背景、复议、单科短板或下次目标"></textarea>
+                  </label>
+                  <div class="score-screenshot-preview full-span" id="scoreScreenshotPreview"></div>
+                  <div class="form-actions full-span">
+                    <button type="submit" class="primary-btn">保存实考成绩</button>
+                    <button id="removeScoreScreenshotBtn" type="button" class="ghost-btn">移除截图</button>
+                  </div>
+                </form>
+                <div class="score-results">
+                  <div id="scoreComparisonPanel" class="score-comparison"></div>
+                  <div id="scoreList" class="stack-list"></div>
+                </div>
+              </div>
             </article>
           </div>
         </section>
@@ -749,6 +811,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=20260521-privacy"></script>
+    <script src="./app.js?v=20260604-score"></script>
   </body>
 </html>

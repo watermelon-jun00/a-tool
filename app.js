@@ -17,6 +17,15 @@ const EXAM_CONFIG = {
   PTE: ["58", "65", "72", "79"],
   DET: ["105", "115", "125", "135"],
 };
+const IELTS_SCORE_FIELDS = [
+  { key: "listening", label: "Listening" },
+  { key: "reading", label: "Reading" },
+  { key: "writing", label: "Writing" },
+  { key: "speaking", label: "Speaking" },
+  { key: "overall", label: "Overall" },
+];
+const SCORE_SCREENSHOT_MAX_BYTES = 3 * 1024 * 1024;
+const SCORE_SCREENSHOT_MAX_DATA_LENGTH = 1200000;
 const FOUNDATION_OPTIONS = ["零基础", "薄弱", "中等", "较稳", "冲分"];
 const COURSE_MODE_OPTIONS = ["雅思1v1", "雅思班课"];
 const TRIAL_SOURCES = ["转介绍", "社媒", "老学员", "校区咨询", "其他"];
@@ -144,6 +153,7 @@ let cloudPushTimer = null;
 let cloudSyncPaused = false;
 let recordSectionState = {};
 let recordSaveStatusTimer = null;
+let scoreScreenshotDraft = null;
 
 const els = {
   summaryGrid: document.getElementById("summaryGrid"),
@@ -201,6 +211,22 @@ const els = {
   studentExcelInput: document.getElementById("studentExcelInput"),
   resetStudentBtn: document.getElementById("resetStudentBtn"),
   studentList: document.getElementById("studentList"),
+  scoreForm: document.getElementById("scoreForm"),
+  scoreId: document.getElementById("scoreId"),
+  scoreStudent: document.getElementById("scoreStudent"),
+  scoreDate: document.getElementById("scoreDate"),
+  scoreListening: document.getElementById("scoreListening"),
+  scoreReading: document.getElementById("scoreReading"),
+  scoreWriting: document.getElementById("scoreWriting"),
+  scoreSpeaking: document.getElementById("scoreSpeaking"),
+  scoreOverall: document.getElementById("scoreOverall"),
+  scoreNotes: document.getElementById("scoreNotes"),
+  scoreScreenshotInput: document.getElementById("scoreScreenshotInput"),
+  scoreScreenshotPreview: document.getElementById("scoreScreenshotPreview"),
+  removeScoreScreenshotBtn: document.getElementById("removeScoreScreenshotBtn"),
+  resetScoreBtn: document.getElementById("resetScoreBtn"),
+  scoreComparisonPanel: document.getElementById("scoreComparisonPanel"),
+  scoreList: document.getElementById("scoreList"),
   recordForm: document.getElementById("recordForm"),
   recordId: document.getElementById("recordId"),
   recordStudent: document.getElementById("recordStudent"),
@@ -325,6 +351,12 @@ function syncUiState() {
   if (!state.ui.trackerStudentId && state.students[0]) {
     state.ui.trackerStudentId = state.students[0].id;
   }
+  if (!state.ui.scoreStudentId && (state.ui.selectedStudentId || state.students[0])) {
+    state.ui.scoreStudentId = state.ui.selectedStudentId || state.students[0].id;
+  }
+  if (state.ui.scoreStudentId && !state.students.some((student) => student.id === state.ui.scoreStudentId)) {
+    state.ui.scoreStudentId = state.students[0] ? state.students[0].id : "";
+  }
   if (!state.ui.trackerSeries) {
     state.ui.trackerSeries = "all";
   }
@@ -366,6 +398,11 @@ function bindEvents() {
     els.studentPackageHours.value = normalizePackageHoursInput(els.studentPackageHours.value);
   });
   els.studentExcelInput.addEventListener("change", importStudentsFromSpreadsheet);
+  els.scoreForm.addEventListener("submit", handleExamScoreSubmit);
+  els.scoreStudent.addEventListener("change", handleScoreStudentChange);
+  els.scoreScreenshotInput.addEventListener("change", (event) => void handleScoreScreenshotChange(event));
+  els.removeScoreScreenshotBtn.addEventListener("click", removeScoreScreenshot);
+  els.resetScoreBtn.addEventListener("click", resetExamScoreForm);
 
   els.recordForm.addEventListener("submit", handleRecordSubmit);
   els.recordForm.addEventListener("input", renderCourseFeedbackPreview);
@@ -382,6 +419,7 @@ function bindEvents() {
     if (target?.type === "student") {
       state.ui.selectedStudentId = target.studentId;
       state.ui.trackerStudentId = target.studentId;
+      state.ui.scoreStudentId = target.studentId;
     }
     persist();
     renderDashboard();
@@ -524,6 +562,7 @@ function renderAll() {
   renderDashboard();
   renderDashboardWeekPreview();
   renderStudents();
+  renderExamScores();
   renderRecordComposer();
   renderRecords();
   renderSchedule();
@@ -1176,6 +1215,179 @@ function renderStudents() {
     "edit-student": editStudent,
     "delete-student": deleteStudent,
   });
+}
+
+function renderExamScores() {
+  const selectedStudentId = getSelectedScoreStudentId();
+  renderScoreStudentOptions(selectedStudentId);
+  renderScoreScreenshotPreview();
+  const hasStudents = Boolean(state.students.length);
+  els.scoreForm.querySelectorAll("input, select, textarea, button").forEach((control) => {
+    if (control === els.resetScoreBtn) {
+      return;
+    }
+    control.disabled = !hasStudents;
+  });
+  els.resetScoreBtn.disabled = !hasStudents;
+
+  if (!hasStudents) {
+    els.scoreComparisonPanel.innerHTML = `<div class="empty-state">先新增学生，再记录实考成绩。</div>`;
+    els.scoreList.innerHTML = "";
+    return;
+  }
+
+  const student = getStudentById(selectedStudentId);
+  const scores = getExamScoresForStudent(selectedStudentId);
+  els.scoreComparisonPanel.innerHTML = renderScoreComparison(student, scores);
+  els.scoreList.innerHTML = scores.length
+    ? scores.map((score, index) => renderExamScoreItem(score, index)).join("")
+    : `<div class="empty-state">这位学生还没有实考成绩；这块不是必填，可以之后再补。</div>`;
+
+  bindActionButtons(els.scoreList, {
+    "edit-score": editExamScore,
+    "delete-score": deleteExamScore,
+  });
+}
+
+function renderScoreStudentOptions(selectedStudentId) {
+  if (!state.students.length) {
+    els.scoreStudent.innerHTML = `<option value="">请先新增学生</option>`;
+    return;
+  }
+  els.scoreStudent.innerHTML = state.students
+    .map(
+      (student) =>
+        `<option value="${student.id}" ${student.id === selectedStudentId ? "selected" : ""}>${escapeHtml(student.name)}${student.className ? ` · ${escapeHtml(student.className)}` : ""}</option>`,
+    )
+    .join("");
+  els.scoreStudent.value = selectedStudentId;
+}
+
+function renderScoreComparison(student, scores) {
+  if (!student) {
+    return `<div class="empty-state">选择一位学生查看实考成绩。</div>`;
+  }
+  if (!scores.length) {
+    return `
+      <div class="score-comparison-card">
+        <h3>${escapeHtml(student.name)} · 暂无实考记录</h3>
+        <div class="stack-meta">可先保存学生资料，等出分后再补成绩和截图。</div>
+      </div>
+    `;
+  }
+  if (scores.length === 1) {
+    return `
+      <div class="score-comparison-card">
+        <h3>${escapeHtml(student.name)} · 第 1 次实考</h3>
+        <div class="score-attempt-date">${escapeHtml(formatScoreDate(scores[0].date))}</div>
+        ${renderScoreMetricGrid(scores[0])}
+        <div class="stack-meta">只有一次成绩时暂不生成对比；新增第二次后会自动显示变化。</div>
+      </div>
+    `;
+  }
+  const first = scores[0];
+  const latest = scores[scores.length - 1];
+  return `
+    <div class="score-comparison-card">
+      <h3>${escapeHtml(student.name)} · 首考到最近一次</h3>
+      <div class="score-attempt-date">${escapeHtml(formatScoreDate(first.date))} → ${escapeHtml(formatScoreDate(latest.date))} · 共 ${scores.length} 次</div>
+      ${renderScoreMetricGrid(latest, first)}
+    </div>
+  `;
+}
+
+function renderScoreMetricGrid(score, baseline = null) {
+  return `
+    <div class="score-comparison-grid">
+      ${IELTS_SCORE_FIELDS.map(({ key, label }) => renderScoreMetric(score, key, label, baseline)).join("")}
+    </div>
+  `;
+}
+
+function renderScoreMetric(score, key, label, baseline = null) {
+  const value = getScoreValue(score, key);
+  const baselineValue = baseline ? getScoreValue(baseline, key) : "";
+  const delta = baselineValue && value ? Number(value) - Number(baselineValue) : null;
+  return `
+    <div class="score-metric">
+      <span>${label}</span>
+      <strong>${escapeHtml(value || "—")}</strong>
+      ${delta === null ? "" : `<div class="score-delta ${getScoreDeltaClass(delta)}">${formatScoreDelta(delta)}</div>`}
+    </div>
+  `;
+}
+
+function renderExamScoreItem(score, index) {
+  return `
+    <div class="stack-item">
+      <div class="score-record-main">
+        <div class="score-record-head">
+          <div>
+            <h3>第 ${index + 1} 次实考</h3>
+            <div class="score-attempt-date">${escapeHtml(formatScoreDate(score.date))}</div>
+          </div>
+          <div class="stack-actions">
+            <button class="ghost-btn" data-action="edit-score" data-id="${score.id}">编辑</button>
+            <button class="ghost-btn" data-action="delete-score" data-id="${score.id}">删除</button>
+          </div>
+        </div>
+        <div class="score-record-grid">
+          ${IELTS_SCORE_FIELDS.map(({ key, label }) => `
+            <div class="score-metric">
+              <span>${label}</span>
+              <strong>${escapeHtml(getScoreValue(score, key) || "—")}</strong>
+            </div>
+          `).join("")}
+        </div>
+        ${score.notes ? `<div class="stack-meta">${escapeHtml(score.notes)}</div>` : ""}
+        ${
+          score.screenshot?.dataUrl
+            ? `
+              <div class="score-record-thumb-row">
+                <img class="score-thumb" src="${escapeHtml(score.screenshot.dataUrl)}" alt="成绩截图缩略图" />
+                <a class="ghost-btn" href="${escapeHtml(score.screenshot.dataUrl)}" target="_blank" rel="noopener" download="${escapeHtml(score.screenshot.name || "ielts-score.jpg")}">打开截图</a>
+              </div>
+            `
+            : ""
+        }
+      </div>
+    </div>
+  `;
+}
+
+function renderScoreScreenshotPreview() {
+  if (!scoreScreenshotDraft?.dataUrl) {
+    els.scoreScreenshotPreview.innerHTML = `<div class="stack-meta">截图可选；为保护稳定性，图片会压缩后只保存在当前浏览器本地。</div>`;
+    els.removeScoreScreenshotBtn.disabled = true;
+    return;
+  }
+  els.scoreScreenshotPreview.innerHTML = `
+    <div class="score-screenshot-card">
+      <img src="${escapeHtml(scoreScreenshotDraft.dataUrl)}" alt="成绩截图预览" />
+      <div>
+        <strong>${escapeHtml(scoreScreenshotDraft.name || "成绩截图")}</strong>
+        <span class="score-screenshot-meta">已压缩为本地预览，不会自动上传。</span>
+      </div>
+    </div>
+  `;
+  els.removeScoreScreenshotBtn.disabled = false;
+}
+
+function getSelectedScoreStudentId() {
+  if (!state.students.length) {
+    state.ui.scoreStudentId = "";
+    return "";
+  }
+  if (!state.ui.scoreStudentId || !state.students.some((student) => student.id === state.ui.scoreStudentId)) {
+    state.ui.scoreStudentId = state.ui.selectedStudentId || state.students[0].id;
+  }
+  return state.ui.scoreStudentId;
+}
+
+function getExamScoresForStudent(studentId) {
+  return state.examScores
+    .filter((score) => score.studentId === studentId)
+    .sort(compareExamScores);
 }
 
 function renderStudentOptions() {
@@ -2217,10 +2429,220 @@ function handleStudentSubmit(event) {
   upsert(state.students, payload);
   state.ui.selectedStudentId = payload.id;
   state.ui.trackerStudentId = payload.id;
+  state.ui.scoreStudentId = payload.id;
   state.ui.recordTargetValue = getDefaultRecordTargetValue(payload.id);
   persist();
   resetStudentForm();
   renderAll();
+}
+
+function handleExamScoreSubmit(event) {
+  event.preventDefault();
+  const selectedStudentId = els.scoreStudent.value || state.ui.scoreStudentId;
+  const existing = state.examScores.find((score) => score.id === els.scoreId.value);
+  const payload = {
+    id: els.scoreId.value || createId("score"),
+    studentId: selectedStudentId,
+    date: els.scoreDate.value || "",
+    scores: getScoreFormValues(),
+    screenshot: scoreScreenshotDraft ? { ...scoreScreenshotDraft } : null,
+    notes: els.scoreNotes.value.trim(),
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (!getStudentById(payload.studentId)) {
+    window.alert("请先选择学生。");
+    return;
+  }
+  if (!payload.date) {
+    window.alert("请填写实考日期。");
+    return;
+  }
+  if (!hasAnyScoreValue(payload) && !payload.screenshot?.dataUrl) {
+    window.alert("至少填写一项成绩，或上传一张成绩截图。");
+    return;
+  }
+
+  upsert(state.examScores, normalizeExamScore(payload, state.students));
+  state.examScores = normalizeExamScores(state.examScores, state.students);
+  state.ui.scoreStudentId = payload.studentId;
+  persist();
+  resetExamScoreForm({ keepStudent: true });
+  renderAll();
+}
+
+function handleScoreStudentChange() {
+  state.ui.scoreStudentId = els.scoreStudent.value;
+  persist();
+  resetExamScoreForm({ keepStudent: true });
+  renderExamScores();
+}
+
+async function handleScoreScreenshotChange(event) {
+  const file = event.target.files[0];
+  if (!file) {
+    return;
+  }
+  try {
+    scoreScreenshotDraft = await readScoreScreenshotFile(file);
+    renderScoreScreenshotPreview();
+  } catch (error) {
+    event.target.value = "";
+    window.alert(error instanceof Error ? error.message : "成绩截图读取失败。");
+  }
+}
+
+function removeScoreScreenshot() {
+  scoreScreenshotDraft = null;
+  els.scoreScreenshotInput.value = "";
+  renderScoreScreenshotPreview();
+}
+
+function editExamScore(id) {
+  const score = state.examScores.find((item) => item.id === id);
+  if (!score) {
+    return;
+  }
+  state.ui.scoreStudentId = score.studentId;
+  els.scoreId.value = score.id;
+  els.scoreStudent.value = score.studentId;
+  els.scoreDate.value = score.date || "";
+  els.scoreListening.value = getScoreValue(score, "listening");
+  els.scoreReading.value = getScoreValue(score, "reading");
+  els.scoreWriting.value = getScoreValue(score, "writing");
+  els.scoreSpeaking.value = getScoreValue(score, "speaking");
+  els.scoreOverall.value = getScoreValue(score, "overall");
+  els.scoreNotes.value = score.notes || "";
+  scoreScreenshotDraft = score.screenshot ? { ...score.screenshot } : null;
+  renderScoreScreenshotPreview();
+  els.scoreDate.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+function deleteExamScore(id) {
+  if (!window.confirm("确定删除这条实考成绩吗？")) {
+    return;
+  }
+  state.examScores = state.examScores.filter((score) => score.id !== id);
+  persist();
+  resetExamScoreForm({ keepStudent: true });
+  renderAll();
+}
+
+function resetExamScoreForm(options = {}) {
+  const keepStudent = Boolean(options.keepStudent);
+  const selectedStudentId = keepStudent ? getSelectedScoreStudentId() : state.ui.selectedStudentId || getSelectedScoreStudentId();
+  els.scoreForm.reset();
+  els.scoreId.value = "";
+  state.ui.scoreStudentId = selectedStudentId || "";
+  els.scoreStudent.value = state.ui.scoreStudentId;
+  scoreScreenshotDraft = null;
+  renderScoreScreenshotPreview();
+}
+
+function getScoreFormValues() {
+  return {
+    listening: normalizeIeltsScoreInput(els.scoreListening.value),
+    reading: normalizeIeltsScoreInput(els.scoreReading.value),
+    writing: normalizeIeltsScoreInput(els.scoreWriting.value),
+    speaking: normalizeIeltsScoreInput(els.scoreSpeaking.value),
+    overall: normalizeIeltsScoreInput(els.scoreOverall.value),
+  };
+}
+
+function hasAnyScoreValue(score) {
+  return IELTS_SCORE_FIELDS.some(({ key }) => Boolean(getScoreValue(score, key)));
+}
+
+function getScoreValue(score, key) {
+  return String(score?.scores?.[key] || score?.[key] || "");
+}
+
+function normalizeIeltsScoreInput(value) {
+  if (value === "" || value === null || typeof value === "undefined") {
+    return "";
+  }
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return "";
+  }
+  const rounded = Math.round(number * 2) / 2;
+  const clamped = Math.min(9, Math.max(0, rounded));
+  return Number.isInteger(clamped) ? String(clamped.toFixed(0)) : String(clamped.toFixed(1));
+}
+
+function compareExamScores(left, right) {
+  const dateCompare = String(left.date || "").localeCompare(String(right.date || ""));
+  if (dateCompare !== 0) {
+    return dateCompare;
+  }
+  return String(left.createdAt || "").localeCompare(String(right.createdAt || ""));
+}
+
+function formatScoreDate(value) {
+  return value || "未填日期";
+}
+
+function getScoreDeltaClass(delta) {
+  if (delta > 0) {
+    return "is-up";
+  }
+  if (delta < 0) {
+    return "is-down";
+  }
+  return "is-same";
+}
+
+function formatScoreDelta(delta) {
+  if (delta > 0) {
+    return `+${delta.toFixed(1).replace(/\.0$/, "")}`;
+  }
+  return delta.toFixed(1).replace(/\.0$/, "");
+}
+
+function readScoreScreenshotFile(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("请上传图片格式的成绩截图。"));
+      return;
+    }
+    if (file.size > SCORE_SCREENSHOT_MAX_BYTES) {
+      reject(new Error("截图文件过大，请先裁剪或压缩到 3MB 以内。"));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const maxSide = 1100;
+        const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.78);
+        if (dataUrl.length > SCORE_SCREENSHOT_MAX_DATA_LENGTH) {
+          reject(new Error("截图压缩后仍然偏大，请进一步裁剪后再上传。"));
+          return;
+        }
+        resolve({
+          name: file.name.replace(/\.[^.]+$/, ".jpg") || "ielts-score.jpg",
+          type: "image/jpeg",
+          dataUrl,
+          originalSize: file.size,
+          storedAt: new Date().toISOString(),
+        });
+      };
+      image.onerror = () => reject(new Error("成绩截图读取失败，请换一张图片。"));
+      image.src = String(reader.result || "");
+    };
+    reader.onerror = () => reject(new Error("成绩截图读取失败，请稍后重试。"));
+    reader.readAsDataURL(file);
+  });
 }
 
 async function handleRecordSubmit(event) {
@@ -2367,6 +2789,7 @@ function editStudent(id) {
 function focusStudent(id) {
   state.ui.selectedStudentId = id;
   state.ui.trackerStudentId = id;
+  state.ui.scoreStudentId = id;
   state.ui.recordTargetValue = getDefaultRecordTargetValue(id);
   persist();
   renderAll();
@@ -2375,6 +2798,7 @@ function focusStudent(id) {
 function openStudentRecord(id) {
   state.ui.selectedStudentId = id;
   state.ui.trackerStudentId = id;
+  state.ui.scoreStudentId = id;
   state.ui.recordTargetValue = getDefaultRecordTargetValue(id);
   persist();
   resetRecordForm();
@@ -2394,6 +2818,7 @@ function openRecordTarget(targetValue) {
   if (target.type === "student") {
     state.ui.selectedStudentId = target.studentId;
     state.ui.trackerStudentId = target.studentId;
+    state.ui.scoreStudentId = target.studentId;
   }
   persist();
   resetRecordForm();
@@ -2412,6 +2837,7 @@ function deleteStudent(id) {
   state.students = state.students.filter((student) => student.id !== id);
   const removedRecordIds = state.records.filter((record) => record.studentId === id).map((record) => record.id);
   state.records = state.records.filter((record) => record.studentId !== id);
+  state.examScores = state.examScores.filter((score) => score.studentId !== id);
   state.records = normalizeRecords(state.records, state.students);
   state.materialLogs = state.materialLogs.filter((log) => !removedRecordIds.includes(log.recordId) && log.studentId !== id);
   if (state.ui.selectedStudentId === id) {
@@ -2419,6 +2845,9 @@ function deleteStudent(id) {
   }
   if (state.ui.trackerStudentId === id) {
     state.ui.trackerStudentId = state.students[0] ? state.students[0].id : "";
+  }
+  if (state.ui.scoreStudentId === id) {
+    state.ui.scoreStudentId = state.students[0] ? state.students[0].id : "";
   }
   state.ui.recordTargetValue = getDefaultRecordTargetValue(state.ui.selectedStudentId);
   persist();
@@ -2532,6 +2961,7 @@ function convertTrialToStudent(id) {
   if (linkedStudent) {
     state.ui.selectedStudentId = linkedStudent.id;
     state.ui.trackerStudentId = linkedStudent.id;
+    state.ui.scoreStudentId = linkedStudent.id;
     state.ui.recordTargetValue = getDefaultRecordTargetValue(linkedStudent.id);
     persist();
     switchTab("students");
@@ -2562,6 +2992,7 @@ function convertTrialToStudent(id) {
   );
   state.ui.selectedStudentId = studentId;
   state.ui.trackerStudentId = studentId;
+  state.ui.scoreStudentId = studentId;
   state.ui.recordTargetValue = getDefaultRecordTargetValue(studentId);
   persist();
   renderAll();
@@ -2702,7 +3133,7 @@ function getBuilderSelectionCodes() {
 }
 
 function loadDemoData() {
-  if (state.students.length || state.trialStudents.length || state.records.length) {
+  if (state.students.length || state.trialStudents.length || state.records.length || state.examScores.length) {
     const proceed = window.confirm("载入示例数据会覆盖当前本地数据，确定继续吗？");
     if (!proceed) {
       return;
@@ -2837,9 +3268,45 @@ function loadDemoData() {
       notes: "下次先看 Passage 3。",
     },
   ];
+  state.examScores = normalizeExamScores(
+    [
+      {
+        id: createId("score"),
+        studentId: studentA.id,
+        date: shiftDate(today(), -45),
+        scores: {
+          listening: "5.5",
+          reading: "6",
+          writing: "5.5",
+          speaking: "6",
+          overall: "6",
+        },
+        screenshot: null,
+        notes: "匿名示例：首考，写作和听力还有提升空间。",
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: createId("score"),
+        studentId: studentA.id,
+        date: shiftDate(today(), -8),
+        scores: {
+          listening: "6.5",
+          reading: "6.5",
+          writing: "6",
+          speaking: "6.5",
+          overall: "6.5",
+        },
+        screenshot: null,
+        notes: "匿名示例：第二次实考，整体提升 0.5。",
+        createdAt: new Date().toISOString(),
+      },
+    ],
+    [studentA, studentB, studentC],
+  );
   rebuildMaterialLogs();
   state.ui.selectedStudentId = studentA.id;
   state.ui.trackerStudentId = studentA.id;
+  state.ui.scoreStudentId = studentA.id;
   state.ui.selectedMonth = todayMonth();
   state.ui.trackerSeries = "all";
   state.ui.scheduleAnchorDate = today();
@@ -2924,6 +3391,7 @@ function importData(event) {
 function applyImportedState(parsed, options = {}) {
   state.students = normalizeStudents(Array.isArray(parsed.students) ? parsed.students : []);
   state.trialStudents = normalizeTrialStudents(Array.isArray(parsed.trialStudents) ? parsed.trialStudents : []);
+  state.examScores = normalizeExamScores(Array.isArray(parsed.examScores) ? parsed.examScores : [], state.students);
   state.records = normalizeRecords(Array.isArray(parsed.records) ? parsed.records : [], state.students);
   state.materialLogs = Array.isArray(parsed.materialLogs) ? parsed.materialLogs : [];
   state.customLessonTags = normalizeLessonTags(parsed.customLessonTags);
@@ -2931,6 +3399,7 @@ function applyImportedState(parsed, options = {}) {
     selectedMonth: parsed.ui?.selectedMonth || todayMonth(),
     selectedStudentId: parsed.ui?.selectedStudentId || (state.students[0] ? state.students[0].id : ""),
     trackerStudentId: parsed.ui?.trackerStudentId || (state.students[0] ? state.students[0].id : ""),
+    scoreStudentId: parsed.ui?.scoreStudentId || parsed.ui?.selectedStudentId || (state.students[0] ? state.students[0].id : ""),
     recordTargetValue: parsed.ui?.recordTargetValue || "",
     trackerSeries: parsed.ui?.trackerSeries || "all",
     scheduleAnchorDate: parsed.ui?.scheduleAnchorDate || today(),
@@ -3686,6 +4155,47 @@ function normalizeStudents(students) {
   }));
 }
 
+function normalizeExamScores(scores, students = state.students) {
+  const validStudentIds = new Set(students.map((student) => student.id));
+  return (Array.isArray(scores) ? scores : [])
+    .map((score) => normalizeExamScore(score))
+    .filter((score) => score.studentId && (!validStudentIds.size || validStudentIds.has(score.studentId)))
+    .sort(compareExamScores);
+}
+
+function normalizeExamScore(score) {
+  return {
+    id: String(score?.id || createId("score")),
+    studentId: String(score?.studentId || "").trim(),
+    date: String(score?.date || "").slice(0, 10),
+    scores: normalizeExamScoreValues(score?.scores || score),
+    screenshot: normalizeScoreScreenshot(score?.screenshot),
+    notes: String(score?.notes || "").trim(),
+    createdAt: String(score?.createdAt || new Date().toISOString()),
+    updatedAt: String(score?.updatedAt || score?.createdAt || new Date().toISOString()),
+  };
+}
+
+function normalizeExamScoreValues(source = {}) {
+  return IELTS_SCORE_FIELDS.reduce((result, { key }) => {
+    result[key] = normalizeIeltsScoreInput(source[key]);
+    return result;
+  }, {});
+}
+
+function normalizeScoreScreenshot(source) {
+  if (!source?.dataUrl || !String(source.dataUrl).startsWith("data:image/")) {
+    return null;
+  }
+  return {
+    name: String(source.name || "ielts-score.jpg"),
+    type: String(source.type || "image/jpeg"),
+    dataUrl: String(source.dataUrl),
+    originalSize: Number(source.originalSize || source.size || 0),
+    storedAt: String(source.storedAt || new Date().toISOString()),
+  };
+}
+
 function normalizeTrialStudents(trials) {
   return (Array.isArray(trials) ? trials : []).map((trial) => ({
     id: trial.id || createId("trial"),
@@ -4349,6 +4859,7 @@ function loadState() {
     students,
     trialStudents: normalizeTrialStudents(Array.isArray(source.trialStudents) ? source.trialStudents : []),
     records: normalizeRecords(Array.isArray(source.records) ? source.records : [], students),
+    examScores: normalizeExamScores(Array.isArray(source.examScores) ? source.examScores : [], students),
     materialLogs: Array.isArray(source.materialLogs) ? source.materialLogs : [],
     customLessonTags: normalizeLessonTags(source.customLessonTags),
     memo: source.memo || "",
@@ -4358,6 +4869,7 @@ function loadState() {
       selectedMonth: source.ui?.selectedMonth || todayMonth(),
       selectedStudentId: source.ui?.selectedStudentId || "",
       trackerStudentId: source.ui?.trackerStudentId || "",
+      scoreStudentId: source.ui?.scoreStudentId || source.ui?.selectedStudentId || "",
       recordTargetValue: source.ui?.recordTargetValue || "",
       trackerSeries: source.ui?.trackerSeries || "all",
       scheduleAnchorDate: source.ui?.scheduleAnchorDate || today(),
@@ -4520,6 +5032,7 @@ function isStateEffectivelyEmpty() {
   return (
     !state.students.length &&
     !state.trialStudents.length &&
+    !state.examScores.length &&
     !state.records.length &&
     !state.materialLogs.length &&
     !state.memo &&

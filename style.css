@@ -301,6 +301,10 @@ h3 {
   align-items: start;
 }
 
+.workspace-grid > .full-width {
+  grid-column: 1 / -1;
+}
+
 .record-workspace {
   max-width: 980px;
   margin: 0 auto;
@@ -1269,6 +1273,119 @@ select:disabled {
   margin-bottom: 0;
 }
 
+.exam-score-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.score-results {
+  display: grid;
+  gap: 14px;
+}
+
+.score-comparison {
+  display: grid;
+  gap: 12px;
+}
+
+.score-comparison-card {
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--brand-soft-2);
+}
+
+.score-comparison-grid,
+.score-record-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.score-metric {
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--panel-strong);
+}
+
+.score-metric span,
+.score-attempt-date,
+.score-screenshot-meta {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.score-metric strong {
+  display: block;
+  color: var(--brand-deep);
+  font-size: 19px;
+  line-height: 1.2;
+}
+
+.score-delta {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.score-delta.is-up {
+  color: #16725f;
+}
+
+.score-delta.is-down {
+  color: var(--danger);
+}
+
+.score-delta.is-same {
+  color: var(--muted);
+}
+
+.score-screenshot-preview {
+  min-height: 78px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--brand-soft-2);
+}
+
+.score-screenshot-card {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.score-screenshot-card img,
+.score-thumb {
+  width: 92px;
+  height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+}
+
+.score-record-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.score-record-main {
+  display: grid;
+  gap: 12px;
+}
+
+.score-record-thumb-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .course-badge {
   display: inline-flex;
   align-items: center;
@@ -1514,6 +1631,9 @@ select:disabled {
   .preview-section,
   .preview-section-body,
   .mini-grid,
+  .exam-score-layout,
+  .score-comparison-grid,
+  .score-record-grid,
   #studentTargetTicks,
   .time-weight-notes {
     grid-template-columns: 1fr;
