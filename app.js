@@ -3709,6 +3709,7 @@ function buildStudentsFromRows(rows) {
         courseMode,
         packagePlan,
         packageHours: normalizePackageHoursInput(rawHours) || normalizePackageHours(courseMode, packagePlan, rawHours),
+        className: getRowValue(row, headerMap, ["所属班级", "班级", "班级名称"]),
         assistant: getRowValue(row, headerMap, ["匹配助教", "助教"]) || "未匹配",
         notes: getRowValue(row, headerMap, ["备注", "学生备注"]),
       };
