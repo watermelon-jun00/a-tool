@@ -1,6 +1,11 @@
-const STORAGE_KEY = "language-teaching-assistant-v3";
-const CLOUD_STORAGE_KEY = "language-teaching-assistant-cloud-v1";
-const LEGACY_STORAGE_KEYS = ["language-teaching-assistant-v2", "language-teaching-assistant-v1"];
+const STORAGE_KEY = "language-teaching-assistant-v4";
+const CLOUD_STORAGE_KEY = "language-teaching-assistant-cloud-v2";
+const RETIRED_BROWSER_STORAGE_KEYS = [
+  "language-teaching-assistant-v3",
+  "language-teaching-assistant-v2",
+  "language-teaching-assistant-v1",
+  "language-teaching-assistant-cloud-v1",
+];
 const CLOUD_TABLE = "app_snapshots";
 const CLOUD_SNAPSHOT_KEY = "teacher-default";
 const DEFAULT_SUPABASE_URL = "";
@@ -127,6 +132,8 @@ const LESSON_FOCUS_OPTIONS = [
     hint: "适合作业订正、作文批改和错题回看。可以只写讲评重点和新的课后要求。",
   },
 ];
+
+purgeRetiredPublicSiteData();
 
 const state = loadState();
 const cloudState = loadCloudState();
@@ -4851,9 +4858,7 @@ function formatTrialStatus(status) {
 }
 
 function loadState() {
-  const saved = safelyParse(window.localStorage.getItem(STORAGE_KEY));
-  const legacy = LEGACY_STORAGE_KEYS.map((key) => safelyParse(window.localStorage.getItem(key))).find(Boolean);
-  const source = saved || legacy || {};
+  const source = safelyParse(readLocalStorage(STORAGE_KEY)) || {};
   const students = normalizeStudents(Array.isArray(source.students) ? source.students : []);
 
   return {
@@ -4881,7 +4886,7 @@ function loadState() {
 }
 
 function loadCloudState() {
-  const source = safelyParse(window.localStorage.getItem(CLOUD_STORAGE_KEY)) || {};
+  const source = safelyParse(readLocalStorage(CLOUD_STORAGE_KEY)) || {};
   return {
     url: normalizeCloudUrl(source.url) || DEFAULT_SUPABASE_URL,
     anonKey: String(source.anonKey || DEFAULT_SUPABASE_ANON_KEY),
@@ -4901,12 +4906,12 @@ function safelyParse(value) {
 }
 
 function persist() {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  writeLocalStorage(STORAGE_KEY, JSON.stringify(state));
   scheduleCloudPush();
 }
 
 function persistCloudState() {
-  window.localStorage.setItem(
+  writeLocalStorage(
     CLOUD_STORAGE_KEY,
     JSON.stringify({
       url: cloudState.url,
@@ -4941,7 +4946,57 @@ function escapeHtml(value) {
 }
 
 function normalizeCloudUrl(value) {
-  return String(value || "").trim().replace(/\/+$/, "");
+  const input = String(value || "").trim();
+  if (!input) {
+    return "";
+  }
+  try {
+    const url = new URL(input);
+    const hostname = url.hostname.toLowerCase();
+    const isSupabaseHost = hostname !== "supabase.co" && hostname.endsWith(".supabase.co");
+    if (url.protocol !== "https:" || !isSupabaseHost || url.username || url.password) {
+      return "";
+    }
+    return url.origin;
+  } catch (error) {
+    return "";
+  }
+}
+
+function purgeRetiredPublicSiteData() {
+  const isPublishedSite =
+    window.location.hostname === "watermelon-jun00.github.io" && window.location.pathname.startsWith("/a-tool");
+  if (!isPublishedSite) {
+    return;
+  }
+  RETIRED_BROWSER_STORAGE_KEYS.forEach(removeLocalStorage);
+}
+
+function readLocalStorage(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch (error) {
+    console.warn(`无法读取本地数据：${key}`, error);
+    return null;
+  }
+}
+
+function writeLocalStorage(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    console.warn(`无法保存本地数据：${key}`, error);
+    return false;
+  }
+}
+
+function removeLocalStorage(key) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch (error) {
+    console.warn(`无法清理旧本地数据：${key}`, error);
+  }
 }
 
 function normalizeCloudSession(source) {

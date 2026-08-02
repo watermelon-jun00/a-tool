@@ -3,8 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co; object-src 'none'; base-uri 'none'; form-action 'self'"
+    />
     <title>雅思教学统计助手</title>
-    <link rel="stylesheet" href="./style.css?v=20260606-template" />
+    <link rel="stylesheet" href="./style.css?v=20260802-privacy" />
   </head>
   <body>
     <div class="app-shell">
@@ -103,7 +108,7 @@
                   <input id="cloudUrl" type="url" placeholder="https://your-project.supabase.co" />
                 </label>
                 <label>
-                  Publishable / anon key
+                  Publishable / anon key（仅限公开密钥）
                   <input id="cloudAnonKey" type="password" placeholder="粘贴 Supabase anon key" />
                 </label>
                 <label>
@@ -114,6 +119,7 @@
                   登录密码
                   <input id="cloudPassword" type="password" placeholder="用于 Supabase 登录" />
                 </label>
+                <div class="stack-meta full-span">请勿在网页中填写 service_role 密钥或其他服务器私钥。</div>
               </div>
               <div class="cloud-actions">
                 <button id="saveCloudConfigBtn" type="button" class="ghost-btn">保存连接</button>
@@ -811,6 +817,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=20260606-template"></script>
+    <script src="./app.js?v=20260802-privacy"></script>
   </body>
 </html>

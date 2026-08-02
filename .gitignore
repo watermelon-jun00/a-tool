@@ -1,6 +1,17 @@
 .DS_Store
 node_modules
 node_modules/
+.env
+.env.*
+!.env.example
+*.local
+
+# User exports and backups can contain names, notes, screenshots, or contact data.
+exports/
+backups/
+language-teaching-assistant-*.json
+student-data*.json
+student-export*.csv
 
 # Local/private data files that should not be published.
 import-example.json
